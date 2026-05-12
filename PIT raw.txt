@@ -1,0 +1,249 @@
+import customtkinter as ctk
+from tkinter import messagebox
+
+# --- Menu & Prices ---
+menu = {
+    "Pizza": 120,
+    "Coke Mismo": 25,
+    "Burger": 50,
+    "Fries": 30,
+    "Ice Cream": 30
+}
+
+# --- Brand Colors (Rayfield Dark Mode + McDonald's Accents) ---
+MCD_RED = "#DA291C"
+MCD_YELLOW = "#FFC72C"
+RAYFIELD_BG = "#1E1E1E"    # Deep dark gray for the main background
+RAYFIELD_CARD = "#2A2A2A"  # Slightly lighter gray for the rounded cards
+WHITE_TEXT = "#FFFFFF"
+
+# Set the global appearance
+ctk.set_appearance_mode("Dark")
+ctk.set_default_color_theme("dark-blue")
+
+class FoodOrderingApp(ctk.CTk):
+    def __init__(self):
+        super().__init__()
+
+        self.title("McOrder Kiosk - All-in-One Dashboard")
+        # Widened the window to fit both panels comfortably side-by-side
+        self.geometry("1150x650")
+        self.configure(fg_color=RAYFIELD_BG)
+
+        # Backend Data
+        self.order_total = 0
+        self.selected_items = {} 
+        self.total_item_count = 0
+        
+        # Build the UI
+        self.create_widgets()
+
+    def create_widgets(self):
+        # ==========================================
+        # BRANDING SIDEBAR (Left Navigation)
+        # ==========================================
+        self.sidebar = ctk.CTkFrame(self, width=200, corner_radius=0, fg_color=MCD_RED)
+        self.sidebar.pack(side="left", fill="y")
+        self.sidebar.pack_propagate(False)
+
+        # App Title & Subtitle
+        ctk.CTkLabel(
+            self.sidebar, text="McOrder", font=ctk.CTkFont(family="Helvetica", size=28, weight="bold"), 
+            text_color=MCD_YELLOW
+        ).pack(pady=(35, 0))
+        
+        ctk.CTkLabel(
+            self.sidebar, text="Dashboard v3.0", font=ctk.CTkFont(size=12), 
+            text_color=WHITE_TEXT
+        ).pack(pady=(0, 40))
+
+        # We no longer need tab buttons since everything is on one screen.
+        # Just a nice visual separator or static info here.
+        ctk.CTkLabel(
+            self.sidebar, text="Status: Online\nRegister: #04", font=ctk.CTkFont(size=14, weight="bold"), 
+            text_color=WHITE_TEXT, justify="left"
+        ).pack(side="bottom", pady=30)
+
+        # ==========================================
+        # MENU AREA (Center)
+        # ==========================================
+        self.menu_view = ctk.CTkFrame(self, fg_color="transparent")
+        self.menu_view.pack(side="left", fill="both", expand=True, padx=20, pady=20)
+        
+        # Header
+        ctk.CTkLabel(
+            self.menu_view, text="🍔 Our Menu", font=ctk.CTkFont(size=26, weight="bold"), 
+            text_color=WHITE_TEXT, anchor="w"
+        ).pack(fill="x", pady=(0, 20))
+
+        # Modern Scrollable Frame for Menu
+        self.menu_scroll_frame = ctk.CTkScrollableFrame(self.menu_view, fg_color="transparent")
+        self.menu_scroll_frame.pack(fill="both", expand=True)
+
+        for item, price in menu.items():
+            self.create_menu_item(self.menu_scroll_frame, item, price)
+
+        # ==========================================
+        # CART AREA (Right Side)
+        # ==========================================
+        self.cart_view = ctk.CTkFrame(self, fg_color="transparent", width=400)
+        self.cart_view.pack(side="right", fill="y", padx=(0, 20), pady=20)
+        self.cart_view.pack_propagate(False) # Force the cart width to stay exactly 400px
+        
+        # Header
+        self.cart_title = ctk.CTkLabel(
+            self.cart_view, text="🛒 Your Order (0)", font=ctk.CTkFont(size=26, weight="bold"), 
+            text_color=WHITE_TEXT, anchor="w"
+        )
+        self.cart_title.pack(fill="x", pady=(0, 20))
+
+        # Modern Scrollable area for cart items
+        self.cart_scroll_frame = ctk.CTkScrollableFrame(self.cart_view, fg_color="transparent")
+        self.cart_scroll_frame.pack(fill="both", expand=True)
+
+        # Bottom Panel for Checkout (Rounded, dark card)
+        self.checkout_panel = ctk.CTkFrame(self.cart_view, fg_color=RAYFIELD_CARD, corner_radius=10)
+        self.checkout_panel.pack(fill="x", pady=(15, 0))
+
+        self.total_label = ctk.CTkLabel(
+            self.checkout_panel, text="Total: ₱0", font=ctk.CTkFont(size=22, weight="bold"), 
+            text_color=MCD_YELLOW
+        )
+        self.total_label.pack(side="left", padx=20, pady=20)
+
+        # Action Buttons
+        ctk.CTkButton(
+            self.checkout_panel, text="PLACE ORDER", font=ctk.CTkFont(size=14, weight="bold"), 
+            fg_color=MCD_YELLOW, hover_color="#E5B227", text_color="black",
+            corner_radius=8, height=40, width=120, command=self.place_order
+        ).pack(side="right", padx=15, pady=15)
+        
+        ctk.CTkButton(
+            self.checkout_panel, text="Clear", font=ctk.CTkFont(size=14, weight="bold"), 
+            fg_color="transparent", hover_color="#333333", text_color=MCD_RED,
+            corner_radius=8, height=40, width=60, border_width=1, border_color=MCD_RED,
+            command=self.clear_order
+        ).pack(side="right", padx=5, pady=15)
+
+        # Initialize empty cart UI
+        self.update_cart_ui()
+
+    # --- UI Helpers ---
+
+    def create_menu_item(self, parent, item_name, item_price):
+        card = ctk.CTkFrame(parent, fg_color=RAYFIELD_CARD, corner_radius=10)
+        card.pack(fill="x", pady=5)
+
+        # Left side: Name
+        ctk.CTkLabel(
+            card, text=item_name, font=ctk.CTkFont(size=16, weight="bold"), 
+            text_color=WHITE_TEXT
+        ).pack(side="left", padx=25, pady=20)
+
+        # Right side: Add Button
+        ctk.CTkButton(
+            card, text="✚ Add", font=ctk.CTkFont(size=13, weight="bold"), 
+            fg_color=MCD_YELLOW, hover_color="#E5B227", text_color="black",
+            corner_radius=6, width=80, height=32,
+            command=lambda i=item_name, p=item_price: self.add_item(i, p)
+        ).pack(side="right", padx=20, pady=15)
+
+        # Right side: Price
+        ctk.CTkLabel(
+            card, text=f"₱{item_price}", font=ctk.CTkFont(size=16), 
+            text_color="#AAAAAA"
+        ).pack(side="right", padx=15)
+
+
+    # --- Backend Logic ---
+
+    def add_item(self, item_name, item_price):
+        if item_name in self.selected_items:
+            self.selected_items[item_name] += 1
+        else:
+            self.selected_items[item_name] = 1
+            
+        self.order_total += item_price
+        self.total_item_count += 1
+        
+        # Redraw Cart
+        self.update_cart_ui()
+
+    def remove_item(self, item_name, item_price):
+        if item_name in self.selected_items:
+            self.selected_items[item_name] -= 1
+            self.order_total -= item_price
+            self.total_item_count -= 1
+            
+            # If quantity drops to 0, completely remove it from the dictionary
+            if self.selected_items[item_name] <= 0:
+                del self.selected_items[item_name]
+                
+        # Redraw Cart
+        self.update_cart_ui()
+
+    def update_cart_ui(self):
+        # Update Title Count
+        self.cart_title.configure(text=f"🛒 Your Order ({self.total_item_count})")
+        
+        # Wipe current UI elements in cart
+        for widget in self.cart_scroll_frame.winfo_children():
+            widget.destroy()
+            
+        if not self.selected_items:
+            ctk.CTkLabel(
+                self.cart_scroll_frame, text="Your cart is currently empty.", 
+                font=ctk.CTkFont(size=14), text_color="#777777"
+            ).pack(pady=40)
+            
+        # Rebuild based on quantities using sleek cards
+        for item, quantity in self.selected_items.items():
+            item_price = menu[item]
+            combined_price = item_price * quantity
+            
+            card = ctk.CTkFrame(self.cart_scroll_frame, fg_color=RAYFIELD_CARD, corner_radius=10)
+            card.pack(fill="x", pady=5)
+            
+            # Remove Button (Minus symbol)
+            ctk.CTkButton(
+                card, text="➖", font=ctk.CTkFont(size=14, weight="bold"), 
+                fg_color="transparent", hover_color="#444444", text_color=MCD_RED,
+                corner_radius=6, width=30, height=30,
+                command=lambda i=item, p=item_price: self.remove_item(i, p)
+            ).pack(side="left", padx=(10, 5), pady=15)
+
+            # Item Details
+            ctk.CTkLabel(
+                card, text=f"{quantity}x", font=ctk.CTkFont(size=15, weight="bold"), 
+                text_color=WHITE_TEXT
+            ).pack(side="left", padx=(5, 10))
+            
+            ctk.CTkLabel(
+                card, text=item, font=ctk.CTkFont(size=15, weight="bold"), 
+                text_color=WHITE_TEXT
+            ).pack(side="left")
+            
+            ctk.CTkLabel(
+                card, text=f"₱{combined_price}", font=ctk.CTkFont(size=15, weight="bold"), 
+                text_color=MCD_YELLOW
+            ).pack(side="right", padx=15)
+            
+        self.total_label.configure(text=f"Total: ₱{self.order_total}")
+
+    def place_order(self):
+        if not self.selected_items:
+            messagebox.showinfo("Empty Cart", "Please add items to your cart first!")
+            return
+        
+        messagebox.showinfo("Order Placed", f"Success!\n\nPlease prepare ₱{self.order_total} for the counter.")
+        self.clear_order()
+
+    def clear_order(self):
+        self.selected_items.clear()
+        self.order_total = 0
+        self.total_item_count = 0
+        self.update_cart_ui()
+
+if __name__ == "__main__":
+    app = FoodOrderingApp()
+    app.mainloop()

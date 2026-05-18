@@ -7,7 +7,7 @@ class FoodApp:
     def __init__(self, root):
         self.root = root
         self.root.title("QuickBite POS System")
-        self.root.geometry("500x800")
+        self.root.geometry("200x400")
 
         # Data: Menu items and prices
         self.menu = {
